@@ -5,534 +5,1005 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>EL Data Analyzer</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
-        /* Import Almarai for numbers and Plus Jakarta Sans for UI */
-        @import url('https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         
-        :root {
-            --primary: #2563eb;
-            --primary-hover: #1d4ed8;
-            --secondary: #7c3aed;
-            --bg-slate: #f8fafc;
-            --font-main: 'Plus Jakarta Sans', sans-serif;
-            --font-chart: 'Almarai', sans-serif;
-        }
-
         * { box-sizing: border-box; }
-        
         body { 
-            font-family: var(--font-main); 
+            font-family: 'Inter', sans-serif; 
             -webkit-font-smoothing: antialiased;
-            background-color: var(--bg-slate);
-            color: #0f172a;
-        }
-
-        .glass-nav {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            -moz-osx-font-smoothing: grayscale;
         }
         
-        .tab-btn {
-            position: relative;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
         .tab-active { 
-            color: var(--primary);
-            font-weight: 700;
+            border-bottom: 3px solid #3b82f6; 
+            color: #3b82f6; 
+            font-weight: 700; 
         }
-
-        .tab-active::after {
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .card-shadow {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            padding: 20px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
             content: '';
             position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 30px;
-            height: 4px;
-            background: var(--primary);
-            border-radius: 10px 10px 0 0;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            pointer-events: none;
         }
         
-        .card-gradient-1 {
-            background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
-            box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.3);
+        /* Toast Notifications */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
         }
         
-        .card-gradient-2 {
-            background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
-            box-shadow: 0 10px 25px -5px rgba(124, 58, 237, 0.3);
+        .toast.success { background-color: #10b981; }
+        .toast.error { background-color: #ef4444; }
+        .toast.info { background-color: #3b82f6; }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
         }
-
-        .chart-wrapper {
-            position: relative;
-            width: 100%;
-            height: 520px; 
+        
+        /* Mobile Optimizations */
+        @media (max-width: 640px) {
+            .tab-btn { 
+                font-size: 0.7rem; 
+                padding: 0.6rem 0.4rem; 
+                white-space: nowrap;
+            }
+            .chart-container { 
+                height: 700px !important; 
+            }
+            .mobile-chart {
+                height: 500px !important;
+            }
+            h1 { font-size: 1.5rem !important; }
+            .stat-number { font-size: 2rem !important; }
+        }
+        
+        @media (min-width: 641px) and (max-width: 1024px) {
+            .chart-container { 
+                height: 750px !important; 
+            }
+        }
+        
+        /* Loading Animation */
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Button Hover Effects */
+        .btn-primary {
             transition: all 0.3s ease;
         }
-
-        .comparison-wrapper {
-            position: relative;
-            height: 750px;
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* Data Table */
+        .data-table {
+            overflow-x: auto;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .data-table table {
             width: 100%;
+            border-collapse: collapse;
         }
-
-        .btn-hover {
-            transition: all 0.2s ease;
+        
+        .data-table th {
+            background: #f8fafc;
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 700;
+            border-bottom: 2px solid #e2e8f0;
+            color: #334155;
         }
-
-        .btn-hover:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        
+        .data-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e2e8f0;
         }
-
-        select {
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-position: right 0.75rem center;
-            background-size: 1.5em 1.5em;
-        }
-
-        /* Toast notifications */
-        #toast {
-            visibility: hidden;
-            min-width: 250px;
-            margin-left: -125px;
-            background-color: #333;
-            color: #fff;
-            text-align: center;
-            border-radius: 8px;
-            padding: 16px;
-            position: fixed;
-            z-index: 100;
-            left: 50%;
-            bottom: 30px;
-            font-size: 14px;
-        }
-
-        #toast.show {
-            visibility: visible;
-            animation: fadein 0.5s, fadeout 0.5s 2.5s;
-        }
-
-        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
-        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
-
-        @media (max-width: 640px) {
-            .chart-wrapper { height: 600px !important; }
-            .comparison-wrapper { height: 900px !important; }
+        
+        .data-table tbody tr:hover {
+            background: #f8fafc;
         }
     </style>
 </head>
-<body class="min-h-screen">
+<body class="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen text-slate-900">
 
-    <div id="toast">Message</div>
-
-    <!-- Navigation -->
-    <nav class="glass-nav sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4">
-            <div class="flex flex-col items-center py-4">
-                <div class="flex items-center gap-2 mb-4">
-                    <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">EL</div>
-                    <span class="text-xl font-extrabold tracking-tight text-slate-800">Analyzer</span>
-                </div>
-                <div class="flex justify-center w-full gap-2 sm:gap-8">
-                    <button onclick="switchTab('tab1')" id="btn-tab1" class="tab-btn px-4 py-2 text-sm sm:text-base text-slate-500 hover:text-blue-600 transition-colors tab-active">New User</button>
-                    <button onclick="switchTab('tab2')" id="btn-tab2" class="tab-btn px-4 py-2 text-sm sm:text-base text-slate-500 hover:text-blue-600 transition-colors">Pending Physical</button>
-                    <button onclick="switchTab('tab3')" id="btn-tab3" class="tab-btn px-4 py-2 text-sm sm:text-base text-slate-500 hover:text-blue-600 transition-colors">Comparison</button>
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
+        <!-- Header -->
+        <header class="mb-6 sm:mb-8 text-center">
+            <div class="inline-block mb-3">
+                <div class="w-16 h-16 mx-auto bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
                 </div>
             </div>
-        </div>
-    </nav>
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-800 tracking-tight mb-2">EL Data Analyzer Pro</h1>
+            <p class="text-slate-500 text-sm sm:text-base">Advanced Analytics & Comparison Dashboard v2.0</p>
+        </header>
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        <!-- Tabs Navigation -->
+        <div class="flex justify-around sm:justify-center mb-6 border-b-2 border-slate-200 sticky top-0 bg-white/80 backdrop-blur-sm z-20 rounded-t-xl shadow-sm">
+            <button onclick="switchTab('tab1')" id="btn-tab1" class="tab-btn px-3 sm:px-8 py-3 transition-all tab-active flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
+                <span class="hidden sm:inline">New User</span>
+                <span class="sm:hidden">New</span>
+            </button>
+            <button onclick="switchTab('tab2')" id="btn-tab2" class="tab-btn px-3 sm:px-8 py-3 transition-all text-slate-400 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span class="hidden sm:inline">Pending Physical</span>
+                <span class="sm:hidden">Pending</span>
+            </button>
+            <button onclick="switchTab('tab3')" id="btn-tab3" class="tab-btn px-3 sm:px-8 py-3 transition-all text-slate-400 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                <span class="hidden sm:inline">Comparison</span>
+                <span class="sm:hidden">Compare</span>
+            </button>
+            <button onclick="switchTab('tab4')" id="btn-tab4" class="tab-btn px-3 sm:px-8 py-3 transition-all text-slate-400 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span class="hidden sm:inline">Data View</span>
+                <span class="sm:hidden">Data</span>
+            </button>
+        </div>
+
         <main>
-            <!-- Tab 1 -->
+            <!-- Tab 1: New User -->
             <div id="tab1" class="tab-content">
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div class="space-y-6">
-                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <span class="w-2 h-6 bg-blue-600 rounded-full"></span>
-                                Data Inputs
-                            </h3>
-                            <label class="block mb-2 text-sm font-medium text-slate-600">Upload CSV File</label>
-                            <input type="file" id="fileInput1" onchange="handleFileUpload(event, '1')" accept=".csv" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer border border-slate-100 rounded-xl p-2 bg-slate-50" />
-                            
-                            <div id="filterArea1" class="hidden mt-6 space-y-6">
-                                <div>
-                                    <label class="block mb-2 text-sm font-medium text-slate-600">Filter by Province</label>
-                                    <select id="govFilter1" onchange="applyFilter('1')" class="w-full p-3 bg-white border border-slate-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"></select>
+                <section class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+                    <div class="lg:col-span-1">
+                        <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-lg border border-slate-200">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
                                 </div>
-                                <div class="card-gradient-1 p-6 rounded-2xl text-white">
-                                    <p class="text-xs font-bold uppercase tracking-wider opacity-70">Total Records</p>
-                                    <p id="rowCount1" class="text-4xl font-black mt-1">0</p>
+                                <h3 class="font-bold text-lg text-blue-700">New User Data</h3>
+                            </div>
+                            
+                            <label class="block mb-4">
+                                <input type="file" onchange="handleFileUpload(event, '1')" accept=".csv" class="block w-full text-sm border-2 border-dashed border-slate-300 rounded-xl p-3 bg-slate-50 hover:border-blue-400 transition-colors cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                            </label>
+                            
+                            <div id="filterArea1" class="hidden space-y-4">
+                                <div>
+                                    <label class="block text-sm font-semibold text-slate-700 mb-2">Filter by Province</label>
+                                    <select id="govFilter1" onchange="applyFilter('1')" class="w-full p-3 border-2 border-slate-200 rounded-xl bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all font-medium text-slate-700"></select>
+                                </div>
+                                
+                                <div class="stat-card">
+                                    <div class="relative z-10">
+                                        <p class="text-sm font-bold uppercase tracking-wider opacity-90 mb-1">Total Records</p>
+                                        <p id="rowCount1" class="stat-number text-4xl font-black">0</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                    
                     <div class="lg:col-span-2">
-                        <div id="chartBox1" class="hidden bg-white p-6 rounded-3xl border border-slate-200 shadow-sm chart-wrapper">
+                        <div id="chartBox1" class="hidden bg-white p-4 sm:p-6 rounded-2xl shadow-lg border border-slate-200 mobile-chart">
+                            <div class="flex items-center justify-between mb-4">
+                                <h4 class="font-bold text-slate-700">Distribution by Province</h4>
+                                <button onclick="exportSingleChart('1')" class="text-sm px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold text-slate-700 transition-colors flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                    Export
+                                </button>
+                            </div>
                             <canvas id="canvas1"></canvas>
                         </div>
                     </div>
-                </div>
+                </section>
             </div>
 
-            <!-- Tab 2 -->
+            <!-- Tab 2: Pending Physical -->
             <div id="tab2" class="tab-content hidden">
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div class="space-y-6">
-                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <span class="w-2 h-6 bg-purple-600 rounded-full"></span>
-                                Pending Data
-                            </h3>
-                            <label class="block mb-2 text-sm font-medium text-slate-600">Upload CSV File</label>
-                            <input type="file" id="fileInput2" onchange="handleFileUpload(event, '2')" accept=".csv" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer border border-slate-100 rounded-xl p-2 bg-slate-50" />
+                <section class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+                    <div class="lg:col-span-1">
+                        <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-lg border border-slate-200">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                                </div>
+                                <h3 class="font-bold text-lg text-purple-700">Pending Physical Data</h3>
+                            </div>
                             
-                            <div id="filterArea2" class="hidden mt-6 space-y-6">
+                            <label class="block mb-4">
+                                <input type="file" onchange="handleFileUpload(event, '2')" accept=".csv" class="block w-full text-sm border-2 border-dashed border-slate-300 rounded-xl p-3 bg-slate-50 hover:border-purple-400 transition-colors cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100" />
+                            </label>
+                            
+                            <div id="filterArea2" class="hidden space-y-4">
                                 <div>
-                                    <label class="block mb-2 text-sm font-medium text-slate-600">Filter by Province</label>
-                                    <select id="govFilter2" onchange="applyFilter('2')" class="w-full p-3 bg-white border border-slate-200 rounded-xl shadow-sm focus:ring-2 focus:ring-purple-500 outline-none transition-all"></select>
+                                    <label class="block text-sm font-semibold text-slate-700 mb-2">Filter by Province</label>
+                                    <select id="govFilter2" onchange="applyFilter('2')" class="w-full p-3 border-2 border-slate-200 rounded-xl bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all font-medium text-slate-700"></select>
                                 </div>
                                 
-                                <div class="card-gradient-2 p-6 rounded-2xl text-white">
-                                    <p class="text-xs font-bold uppercase tracking-wider opacity-70">Total Pending</p>
-                                    <p id="rowCount2" class="text-4xl font-black mt-1">0</p>
+                                <div class="stat-card" style="background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);">
+                                    <div class="relative z-10">
+                                        <p class="text-sm font-bold uppercase tracking-wider opacity-90 mb-1">Total Records</p>
+                                        <p id="rowCount2" class="stat-number text-4xl font-black">0</p>
+                                    </div>
                                 </div>
-
-                                <button onclick="downloadFilteredData('2')" class="btn-hover w-full py-4 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center gap-3">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                    Download CSV
-                                </button>
                             </div>
                         </div>
                     </div>
+                    
                     <div class="lg:col-span-2">
-                        <div id="chartBox2" class="hidden bg-white p-6 rounded-3xl border border-slate-200 shadow-sm chart-wrapper">
+                        <div id="chartBox2" class="hidden bg-white p-4 sm:p-6 rounded-2xl shadow-lg border border-slate-200 mobile-chart">
+                            <div class="flex items-center justify-between mb-4">
+                                <h4 class="font-bold text-slate-700">Distribution by Province</h4>
+                                <button onclick="exportSingleChart('2')" class="text-sm px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold text-slate-700 transition-colors flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                    Export
+                                </button>
+                            </div>
                             <canvas id="canvas2"></canvas>
                         </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Tab 3: Comparison -->
+            <div id="tab3" class="tab-content hidden">
+                <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-lg border border-slate-200">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                        <div>
+                            <h3 class="text-xl sm:text-2xl font-bold text-slate-800 mb-1">Comparative Analysis</h3>
+                            <p class="text-sm text-slate-500">New User vs Pending Physical Installation</p>
+                        </div>
+                        <button onclick="exportChartAsImage()" class="btn-primary w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold shadow-lg hover:shadow-xl flex justify-center items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            <span>Export HD Image</span>
+                        </button>
+                    </div>
+                    
+                    <div id="chartExportArea" class="bg-white p-3 sm:p-6 rounded-xl border-2 border-slate-100 chart-container overflow-hidden">
+                        <canvas id="canvasComparison"></canvas>
                     </div>
                 </div>
             </div>
 
-            <!-- Tab 3 -->
-            <div id="tab3" class="tab-content hidden">
-                <div class="bg-white p-4 sm:p-8 rounded-3xl border border-slate-200 shadow-sm">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-6">
-                        <div>
-                            <h3 class="text-2xl font-extrabold text-slate-900">Market Comparison</h3>
-                            <p class="text-slate-500 text-sm mt-1">Side-by-side analysis of New Users vs. Pending Installations</p>
-                        </div>
-                        <div class="flex flex-wrap gap-3">
-                            <button onclick="updateComparisonChart()" class="btn-hover px-5 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold flex items-center gap-2">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                                Refresh
-                            </button>
-                            <button onclick="exportChartAsImage()" class="btn-hover px-6 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 flex items-center gap-2">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                Export HD PNG
-                            </button>
-                        </div>
+            <!-- Tab 4: Data View -->
+            <div id="tab4" class="tab-content hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200">
+                        <h3 class="text-xl font-bold text-slate-800 mb-4">New User Records</h3>
+                        <div id="dataTable1" class="data-table"></div>
                     </div>
-                    <div id="chartExportArea" class="bg-white p-4 rounded-2xl comparison-wrapper">
-                        <canvas id="canvasComparison"></canvas>
+                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200">
+                        <h3 class="text-xl font-bold text-slate-800 mb-4">Pending Physical Records</h3>
+                        <div id="dataTable2" class="data-table"></div>
                     </div>
                 </div>
             </div>
         </main>
         
-        <div id="welcomeState" class="mt-20 flex flex-col items-center">
-            <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-                <svg class="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+        <!-- Welcome State -->
+        <div id="welcomeState" class="mt-20 text-center">
+            <div class="inline-block p-8 bg-white rounded-2xl shadow-lg border border-slate-200">
+                <div class="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
+                    <svg class="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                </div>
+                <h3 class="text-xl font-bold text-slate-700 mb-2">Get Started</h3>
+                <p class="text-slate-500 max-w-md mx-auto">Upload your CSV files to begin analyzing and comparing your data</p>
             </div>
-            <p class="text-slate-500 font-medium text-lg">Waiting for data upload...</p>
         </div>
     </div>
 
     <script>
-        Chart.register(ChartDataLabels);
+        // ============================================
+        // INITIALIZATION & CHART REGISTRATION
+        // ============================================
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeApp();
+        });
 
-        // Chart Global Settings
-        Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
-
-        const govMapping = {
-            "FDW": "Qadisiya", "FBG": "Baghdad", "FKU": "Wasit", "FNJ": "Najaf",
-            "FRM": "Anbar", "FBB": "Babil", "FBS": "Basrah", "FKR": "Karballa",
-            "FTK": "Salah aldin", "FKK": "Kirkuk", "FAM": "Misan", "FMU": "Muthanna",
-            "FNS": "Thy Qar", "FDY": "Diala", "FMS": "Naynawa"
-        };
-
-        const appState = {
-            "1": { headers: [], rows: [], filteredRows: [], zoneIdx: -1, govIdx: -1, chart: null },
-            "2": { headers: [], rows: [], filteredRows: [], zoneIdx: -1, govIdx: -1, chart: null },
-            comparisonChart: null
-        };
-
-        function showToast(msg) {
-            const t = document.getElementById("toast");
-            t.textContent = msg;
-            t.className = "show";
-            setTimeout(() => { t.className = t.className.replace("show", ""); }, 3000);
-        }
-
-        const commonChartOptions = {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: { duration: 800, easing: 'easeOutQuart' },
-            plugins: {
-                tooltip: {
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                    titleColor: '#fff',
-                    bodyColor: '#cbd5e1',
-                    padding: 14,
-                    cornerRadius: 12,
-                    titleFont: { size: 15, weight: 'bold' },
-                    bodyFont: { size: 14 },
-                    usePointStyle: true,
-                    boxPadding: 8
+        function initializeApp() {
+            try {
+                // Register Chart.js plugins
+                if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
+                    Chart.register(ChartDataLabels);
+                    console.log('✓ Chart.js initialized with DataLabels plugin');
+                } else {
+                    throw new Error('Chart.js or ChartDataLabels plugin not loaded');
                 }
+            } catch (error) {
+                showToast('Failed to initialize Chart.js: ' + error.message, 'error');
+                console.error(error);
             }
-        };
-
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
-            document.getElementById(tabId).classList.remove('hidden');
-            ['tab1', 'tab2', 'tab3'].forEach(id => {
-                const btn = document.getElementById(`btn-${id}`);
-                if(btn) btn.className = tabId === id ? 'tab-btn px-4 py-2 text-slate-800 transition-all tab-active' : 'tab-btn px-4 py-2 transition-all text-slate-400';
-            });
-            if(tabId === 'tab3') setTimeout(updateComparisonChart, 50);
         }
+
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        function validateCSV(data) {
+            if (!data || data.length < 2) {
+                throw new Error('CSV must contain headers and at least one data row');
+            }
+            
+            const headers = data[0];
+            const zoneIdx = headers.findIndex(h => h.toLowerCase().includes("zone"));
+            
+            if (zoneIdx === -1) {
+                throw new Error('CSV must contain a "zone" column');
+            }
+            
+            return { zoneIdx, headers, rowCount: data.length - 1 };
+        }
+
+        // ============================================
+        // CSV PARSER (Robust)
+        // ============================================
 
         function parseCSV(text) {
             const rows = [];
             let row = [], cell = "", inQuotes = false;
+            
             for (let i = 0; i < text.length; i++) {
                 const c = text[i];
+                
                 if (inQuotes) {
-                    if (c === '"' && text[i+1] === '"') { cell += '"'; i++; }
-                    else if (c === '"') inQuotes = false;
-                    else cell += c;
+                    if (c === '"' && text[i+1] === '"') { 
+                        cell += '"'; 
+                        i++; 
+                    } else if (c === '"') {
+                        inQuotes = false;
+                    } else {
+                        cell += c;
+                    }
                 } else {
-                    if (c === '"') inQuotes = true;
-                    else if (c === ',') { row.push(cell.trim()); cell = ""; }
-                    else if (c === '\n' || c === '\r') {
+                    if (c === '"') {
+                        inQuotes = true;
+                    } else if (c === ',') { 
+                        row.push(cell.trim()); 
+                        cell = ""; 
+                    } else if (c === '\n' || c === '\r') {
                         row.push(cell.trim());
-                        if (row.length > 0) rows.push(row);
-                        row = []; cell = "";
+                        if (row.some(cell => cell.length > 0)) {
+                            rows.push(row);
+                        }
+                        row = []; 
+                        cell = "";
                         if (c === '\r' && text[i+1] === '\n') i++;
-                    } else cell += c;
+                    } else {
+                        cell += c;
+                    }
                 }
             }
-            if (cell || row.length) { row.push(cell.trim()); rows.push(row); }
+            
+            if (cell || row.length) { 
+                row.push(cell.trim()); 
+                if (row.some(cell => cell.length > 0)) {
+                    rows.push(row);
+                }
+            }
+            
             return rows;
         }
+
+        // ============================================
+        // PROVINCE MAPPING & STATE
+        // ============================================
+
+        const govMapping = {
+            "FDW": "Qadisiya",
+            "FBG": "Baghdad",
+            "FKU": "Wasit",
+            "FNJ": "Najaf",
+            "FRM": "Anbar",
+            "FBB": "Babil",
+            "FBS": "Basrah",
+            "FKR": "Karballa",
+            "FTK": "Salah aldin",
+            "FKK": "Kirkuk",
+            "FAM": "Misan",
+            "FMU": "Muthanna",
+            "FNS": "Thy Qar",
+            "FDY": "Diala",
+            "FMS": "Naynawa"
+        };
+
+        const appState = {
+            "1": { rows: [], zoneIdx: -1, govIdx: -1, statusIdx: -1, chart: null, fileName: '' },
+            "2": { rows: [], zoneIdx: -1, govIdx: -1, statusIdx: -1, chart: null, fileName: '' },
+            comparisonChart: null
+        };
+
+        const colorSchemes = {
+            "1": {
+                primary: '#3b82f6',
+                gradient: ['#3b82f6', '#2563eb', '#1d4ed8', '#1e40af'],
+                light: '#dbeafe'
+            },
+            "2": {
+                primary: '#a855f7',
+                gradient: ['#a855f7', '#9333ea', '#7e22ce', '#6b21a8'],
+                light: '#f3e8ff'
+            }
+        };
+
+        // ============================================
+        // TAB MANAGEMENT
+        // ============================================
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+            document.getElementById(tabId).classList.remove('hidden');
+            
+            ['tab1', 'tab2', 'tab3', 'tab4'].forEach(id => {
+                const btn = document.getElementById(`btn-${id}`);
+                if(btn) {
+                    btn.className = tabId === id 
+                        ? 'tab-btn px-3 sm:px-8 py-3 transition-all tab-active flex items-center gap-2' 
+                        : 'tab-btn px-3 sm:px-8 py-3 transition-all text-slate-400 flex items-center gap-2';
+                }
+            });
+            
+            if(tabId === 'tab3') {
+                setTimeout(() => updateComparisonChart(), 100);
+            }
+            
+            if(tabId === 'tab4') {
+                updateDataTables();
+            }
+        }
+
+        // ============================================
+        // FILE UPLOAD & PROCESSING
+        // ============================================
 
         function handleFileUpload(event, fileNum) {
             const file = event.target.files[0];
             if (!file) return;
+            
+            // Validate file type
+            if (!file.name.toLowerCase().endsWith('.csv')) {
+                showToast('Please upload a CSV file', 'error');
+                return;
+            }
+            
+            // Validate file size (max 50MB)
+            if (file.size > 50 * 1024 * 1024) {
+                showToast(`File too large (${formatBytes(file.size)}). Max 50MB.`, 'error');
+                return;
+            }
+            
             const reader = new FileReader();
-            reader.onload = (e) => {
-                const data = parseCSV(e.target.result);
-                if (data.length < 1) return;
-                const headers = data[0];
-                const rows = data.slice(1);
-                const state = appState[fileNum];
-                
-                state.headers = headers;
-                state.zoneIdx = headers.findIndex(h => h.toLowerCase().includes("zone"));
-                state.statusIdx = headers.findIndex(h => h.toLowerCase().includes("status"));
-                state.govIdx = headers.length; 
-
-                let processed = rows.map(r => {
-                    const zone = (r[state.zoneIdx] || "").toUpperCase();
-                    let mapped = "Unknown";
-                    for (const [k, v] of Object.entries(govMapping)) {
-                        if (zone.startsWith(k)) { mapped = v; break; }
-                    }
-                    return [...r, mapped];
-                });
-
-                if (fileNum === "2" && state.statusIdx !== -1) {
-                    processed = processed.filter(r => (r[state.statusIdx] || "").trim() === "Pending Physical Installation");
-                }
-
-                state.rows = processed;
-                document.getElementById('welcomeState').classList.add('hidden');
-                document.getElementById(`filterArea${fileNum}`).classList.remove('hidden');
-                document.getElementById(`chartBox${fileNum}`).classList.remove('hidden');
-
-                const sel = document.getElementById(`govFilter${fileNum}`);
-                sel.innerHTML = '<option value="all">All Provinces</option>';
-                Object.entries(govMapping).forEach(([k, v]) => sel.innerHTML += `<option value="${k}">${v}</option>`);
-                
-                applyFilter(fileNum);
-                showToast(`File ${fileNum} loaded successfully`);
+            
+            reader.onerror = () => {
+                showToast('Error reading file. Please try again.', 'error');
             };
-            reader.readAsText(file, "UTF-8");
+            
+            reader.onload = (e) => {
+                try {
+                    const data = parseCSV(e.target.result);
+                    const validation = validateCSV(data);
+                    
+                    const headers = data[0];
+                    const rows = data.slice(1);
+                    const state = appState[fileNum];
+                    
+                    state.fileName = file.name;
+                    state.zoneIdx = validation.zoneIdx;
+                    state.statusIdx = headers.findIndex(h => h.toLowerCase().includes("status"));
+                    state.govIdx = headers.length;
+
+                    // Process rows with province mapping
+                    let processed = rows.map(r => {
+                        const zone = (r[state.zoneIdx] || "").toUpperCase().trim();
+                        let mapped = "Unknown";
+                        
+                        for (const [k, v] of Object.entries(govMapping)) {
+                            if (zone.startsWith(k)) { 
+                                mapped = v; 
+                                break; 
+                            }
+                        }
+                        return [...r, mapped];
+                    });
+
+                    // Filter for Pending Physical in dataset 2
+                    if (fileNum === "2" && state.statusIdx !== -1) {
+                        const originalCount = processed.length;
+                        processed = processed.filter(r => {
+                            const status = (r[state.statusIdx] || "").trim().toLowerCase();
+                            return status.includes("pending") && status.includes("physical");
+                        });
+                        console.log(`Filtered: ${originalCount} → ${processed.length} Pending Physical records`);
+                    }
+
+                    state.rows = processed;
+                    
+                    // Update UI
+                    document.getElementById('welcomeState').classList.add('hidden');
+                    document.getElementById(`filterArea${fileNum}`).classList.remove('hidden');
+                    document.getElementById(`chartBox${fileNum}`).classList.remove('hidden');
+
+                    // Populate filter dropdown
+                    const sel = document.getElementById(`govFilter${fileNum}`);
+                    sel.innerHTML = '<option value="all">All Provinces</option>';
+                    Object.entries(govMapping).forEach(([k, v]) => {
+                        sel.innerHTML += `<option value="${k}">${v}</option>`;
+                    });
+                    
+                    showToast(`✓ Loaded ${processed.length} records from ${file.name}`, 'success');
+                    applyFilter(fileNum);
+                } catch (error) {
+                    console.error('Error processing CSV:', error);
+                    showToast('Error: ' + error.message, 'error');
+                }
+            };
+            
+            reader.readAsText(file);
         }
+
+        // ============================================
+        // FILTERING & CHARTING
+        // ============================================
 
         function applyFilter(fileNum) {
             const state = appState[fileNum];
             const val = document.getElementById(`govFilter${fileNum}`).value;
-            state.filteredRows = val === "all" ? state.rows : state.rows.filter(r => (r[state.zoneIdx] || "").toUpperCase().startsWith(val));
-            renderSingleChart(fileNum, state.filteredRows);
-        }
-
-        function downloadFilteredData(fileNum) {
-            const state = appState[fileNum];
-            if (!state.filteredRows.length) return;
-            const csvContent = [state.headers.join(","), ...state.filteredRows.map(row => row.slice(0, state.headers.length).map(cell => `"${cell}"`).join(","))].join("\n");
-            const BOM = "\uFEFF";
-            const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = `Export_${new Date().getTime()}.csv`;
-            link.click();
+            
+            const filtered = val === "all" 
+                ? state.rows 
+                : state.rows.filter(r => (r[state.zoneIdx] || "").toUpperCase().startsWith(val));
+            
+            renderSingleChart(fileNum, filtered);
         }
 
         function renderSingleChart(fileNum, data) {
-            document.getElementById(`rowCount${fileNum}`).textContent = data.length.toLocaleString();
-            const counts = {};
-            data.forEach(r => { const g = r[appState[fileNum].govIdx]; counts[g] = (counts[g] || 0) + 1; });
-            const labels = Object.values(govMapping).filter(v => counts[v]);
-            const values = labels.map(l => counts[l] || 0);
+            try {
+                document.getElementById(`rowCount${fileNum}`).textContent = data.length.toLocaleString();
+                
+                const counts = {};
+                data.forEach(r => { 
+                    const g = r[appState[fileNum].govIdx]; 
+                    if (g) counts[g] = (counts[g] || 0) + 1;
+                });
+                
+                const labels = Object.values(govMapping).filter(v => counts[v]);
+                const values = labels.map(l => counts[l] || 0);
 
-            if (appState[fileNum].chart) appState[fileNum].chart.destroy();
-            appState[fileNum].chart = new Chart(document.getElementById(`canvas${fileNum}`), {
-                type: 'bar',
-                data: { 
-                    labels, 
-                    datasets: [{ 
-                        data: values, 
-                        backgroundColor: fileNum === '1' ? 'rgba(37, 99, 235, 0.85)' : 'rgba(124, 58, 237, 0.85)', 
-                        hoverBackgroundColor: fileNum === '1' ? '#2563eb' : '#7c3aed',
-                        borderRadius: 10
-                    }] 
-                },
-                options: { 
-                    ...commonChartOptions,
-                    indexAxis: 'y', 
-                    layout: { padding: { right: 90, left: 10, top: 20, bottom: 20 } },
-                    plugins: { 
-                        ...commonChartOptions.plugins,
-                        legend: { display: false }, 
-                        datalabels: { 
-                            anchor: 'end', align: 'right', offset: 12, 
-                            font: { weight: '800', size: 14, family: "'Almarai', sans-serif" },
-                            color: '#0f172a',
-                            formatter: (v) => v.toLocaleString()
-                        } 
+                if (labels.length === 0) {
+                    console.warn('No data to display for chart');
+                    return;
+                }
+
+                // Generate gradient colors
+                const colors = labels.map((_, idx) => {
+                    const scheme = colorSchemes[fileNum].gradient;
+                    return scheme[idx % scheme.length];
+                });
+
+                if (appState[fileNum].chart) {
+                    appState[fileNum].chart.destroy();
+                }
+                
+                const canvas = document.getElementById(`canvas${fileNum}`);
+                if (!canvas) {
+                    throw new Error(`Canvas element #canvas${fileNum} not found`);
+                }
+
+                appState[fileNum].chart = new Chart(canvas, {
+                    type: 'bar',
+                    data: { 
+                        labels, 
+                        datasets: [{ 
+                            data: values, 
+                            backgroundColor: colors,
+                            borderRadius: 8,
+                            borderWidth: 2,
+                            borderColor: 'rgba(255, 255, 255, 0.8)',
+                            hoverBackgroundColor: colorSchemes[fileNum].primary,
+                            barPercentage: 0.8
+                        }] 
                     },
-                    scales: {
-                        x: { grid: { display: false }, ticks: { font: { weight: '600' } } },
-                        y: { 
-                            ticks: { font: { weight: '700', size: 14 }, color: '#475569' }, 
-                            grid: { display: false } 
+                    options: { 
+                        indexAxis: 'y', 
+                        maintainAspectRatio: false,
+                        responsive: true,
+                        plugins: { 
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                padding: 12,
+                                titleFont: { size: 14, weight: 'bold' },
+                                bodyFont: { size: 13 },
+                                cornerRadius: 8,
+                                displayColors: false
+                            },
+                            datalabels: { 
+                                anchor: 'end', 
+                                align: 'end', 
+                                offset: 8, 
+                                color: '#1e293b',
+                                font: { 
+                                    weight: 'bold', 
+                                    size: window.innerWidth < 640 ? 11 : 14 
+                                },
+                                formatter: (v) => v.toLocaleString(),
+                                display: true
+                            } 
+                        },
+                        scales: {
+                            x: { 
+                                grid: { display: false },
+                                ticks: { 
+                                    font: { weight: '600', size: 12 },
+                                    color: '#64748b'
+                                }
+                            },
+                            y: {
+                                grid: { color: '#f1f5f9' },
+                                ticks: { 
+                                    font: { 
+                                        size: window.innerWidth < 640 ? 11 : 13, 
+                                        weight: '600' 
+                                    },
+                                    color: '#334155'
+                                }
+                            }
+                        },
+                        animation: {
+                            duration: 800,
+                            easing: 'easeInOutQuart'
                         }
                     }
-                }
-            });
+                });
+            } catch (error) {
+                console.error('Error rendering chart:', error);
+                showToast('Error: ' + error.message, 'error');
+            }
         }
 
         function updateComparisonChart() {
-            const labels = Object.values(govMapping).sort();
-            const d1 = {}, d2 = {};
-            appState["1"].rows.forEach(r => { const g = r[appState["1"].govIdx]; d1[g] = (d1[g] || 0) + 1; });
-            appState["2"].rows.forEach(r => { const g = r[appState["2"].govIdx]; d2[g] = (d2[g] || 0) + 1; });
-
-            const maxVal = Math.max(...labels.map(l => (d1[l] || 0)), ...labels.map(l => (d2[l] || 0)), 10);
-
-            if (appState.comparisonChart) appState.comparisonChart.destroy();
-            const ctx = document.getElementById('canvasComparison').getContext('2d');
-            
-            appState.comparisonChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels,
-                    datasets: [
-                        { label: 'New User', data: labels.map(l => d1[l] || 0), backgroundColor: 'rgba(37, 99, 235, 0.85)', borderRadius: 8 },
-                        { label: 'Pending Installation', data: labels.map(l => d2[l] || 0), backgroundColor: 'rgba(124, 58, 237, 0.85)', borderRadius: 8 }
-                    ]
-                },
-                options: {
-                    ...commonChartOptions,
-                    indexAxis: 'y',
-                    layout: { padding: { right: 110, left: 10, top: 10, bottom: 10 } },
-                    plugins: {
-                        ...commonChartOptions.plugins,
-                        legend: {
-                            position: 'top', 
-                            labels: { font: { size: 14, weight: '700' } } 
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)', padding: 12, titleFont: { size: 14, weight: 'bold' }, bodyFont: { size: 13 }, cornerRadius: 8 
-                        },
-                        datalabels: {
-                            anchor: 'end', align: 'right', offset: 10,
-                            font: { size: 12, weight: '800', family: "'Almarai', sans-serif" },
-                            formatter: (v) => v > 0 ? v.toLocaleString() : ''
-                        }
-                    },
-                    scales: {
-                        x: { 
-                            grid: { color: '#f1f5f9' }, 
-                            ticks: { font: { weight: '600' } },
-                            suggestedMax: maxVal * 1.2
-                        },
-                        y: { grid: { display: false }, ticks: { font: { weight: '700' } } }
-                    }
-                }
-            });
-        }
-
-        /**
-         * Enhanced Export Function
-         * Optimized for Full HD Output
-         */
-        async function exportChartAsImage() {
             try {
-                showToast("Generating High-Res Image...");
-                const target = document.getElementById('chartExportArea');
+                const labels = Object.values(govMapping).sort();
+                const d1 = {}, d2 = {};
                 
-                // Optimized html2canvas settings for HD
-                const options = {
-                    backgroundColor: '#ffffff',
-                    scale: 5, // Increased scale for ultra-sharp resolution
-                    useCORS: true,
-                    logging: false,
-                    allowTaint: true,
-                    onclone: (clonedDoc) => {
-                        // Ensure cloned elements look perfect
-                        const clonedTarget = clonedDoc.getElementById('chartExportArea');
-                        clonedTarget.style.padding = "40px";
-                    }
-                };
+                appState["1"].rows.forEach(r => { 
+                    const g = r[appState["1"].govIdx]; 
+                    if (g) d1[g] = (d1[g] || 0) + 1;
+                });
+                
+                appState["2"].rows.forEach(r => { 
+                    const g = r[appState["2"].govIdx]; 
+                    if (g) d2[g] = (d2[g] || 0) + 1;
+                });
 
-                const canvas = await html2canvas(target, options);
+                if (appState.comparisonChart) {
+                    appState.comparisonChart.destroy();
+                }
                 
-                // Create high-quality data URL
-                const dataUrl = canvas.toDataURL('image/png', 1.0);
-                
-                const link = document.createElement('a');
-                link.download = `EL_Data_Report_${new Date().toISOString().split('T')[0]}.png`;
-                link.href = dataUrl;
-                link.click();
-                
-                showToast("HD Image exported successfully!");
-            } catch (e) {
-                console.error("Export Error:", e);
-                showToast("Export failed. Please try again.");
+                const canvas = document.getElementById('canvasComparison');
+                if (!canvas) {
+                    throw new Error('Comparison canvas not found');
+                }
+
+                appState.comparisonChart = new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [
+                            { 
+                                label: 'New User', 
+                                data: labels.map(l => d1[l] || 0), 
+                                backgroundColor: '#3b82f6',
+                                borderColor: '#2563eb',
+                                borderWidth: 2,
+                                borderRadius: 6, 
+                                barPercentage: 0.7, 
+                                categoryPercentage: 0.85 
+                            },
+                            { 
+                                label: 'Pending Physical', 
+                                data: labels.map(l => d2[l] || 0), 
+                                backgroundColor: '#a855f7',
+                                borderColor: '#9333ea',
+                                borderWidth: 2,
+                                borderRadius: 6, 
+                                barPercentage: 0.7, 
+                                categoryPercentage: 0.85 
+                            }
+                        ]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        maintainAspectRatio: false,
+                        responsive: true,
+                        layout: { 
+                            padding: { 
+                                right: window.innerWidth < 640 ? 50 : 80, 
+                                left: 10, 
+                                top: 20, 
+                                bottom: 10 
+                            } 
+                        },
+                        plugins: {
+                            legend: { 
+                                position: 'top',
+                                align: 'center',
+                                labels: { 
+                                    font: { 
+                                        size: window.innerWidth < 640 ? 12 : 15, 
+                                        weight: '700' 
+                                    },
+                                    padding: 15,
+                                    usePointStyle: true,
+                                    pointStyle: 'circle',
+                                    boxWidth: 8,
+                                    boxHeight: 8
+                                } 
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                padding: 12,
+                                titleFont: { size: 14, weight: 'bold' },
+                                bodyFont: { size: 13 },
+                                cornerRadius: 8,
+                                displayColors: true
+                            },
+                            datalabels: {
+                                anchor: 'end',
+                                align: 'end',
+                                offset: window.innerWidth < 640 ? 15 : 20, 
+                                color: '#1e293b',
+                                font: { 
+                                    size: window.innerWidth < 640 ? 10 : 14, 
+                                    weight: '700' 
+                                },
+                                formatter: (v) => v > 0 ? v.toLocaleString() : '',
+                                display: 'auto'
+                            }
+                        },
+                        scales: {
+                            x: { 
+                                grid: { display: false },
+                                ticks: { 
+                                    font: { weight: '600', size: 12 },
+                                    color: '#64748b'
+                                }
+                            },
+                            y: { 
+                                grid: { color: '#f1f5f9' },
+                                ticks: { 
+                                    font: { 
+                                        size: window.innerWidth < 640 ? 10 : 13, 
+                                        weight: '600' 
+                                    },
+                                    color: '#334155'
+                                } 
+                            }
+                        },
+                        animation: {
+                            duration: 1000,
+                            easing: 'easeInOutQuart'
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error updating comparison chart:', error);
+                showToast('Error: ' + error.message, 'error');
             }
         }
+
+        // ============================================
+        // DATA TABLE VIEW
+        // ============================================
+
+        function updateDataTables() {
+            updateDataTable('1');
+            updateDataTable('2');
+        }
+
+        function updateDataTable(fileNum) {
+            const state = appState[fileNum];
+            const container = document.getElementById(`dataTable${fileNum}`);
+            
+            if (state.rows.length === 0) {
+                container.innerHTML = '<p class="text-slate-500 text-sm p-4">No data loaded</p>';
+                return;
+            }
+            
+            let html = '<table><thead><tr>';
+            const headers = state.rows.length > 0 ? Object.keys(state.rows[0]) : [];
+            headers.forEach(h => {
+                html += `<th>${h}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+            
+            // Show first 10 rows
+            state.rows.slice(0, 10).forEach(row => {
+                html += '<tr>';
+                if (Array.isArray(row)) {
+                    row.forEach(cell => {
+                        html += `<td>${String(cell).substring(0, 50)}</td>`;
+                    });
+                }
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            
+            if (state.rows.length > 10) {
+                html += `<p class="text-slate-500 text-sm p-4">Showing 10 of ${state.rows.length} records</p>`;
+            }
+            
+            container.innerHTML = html;
+        }
+
+        // ============================================
+        // EXPORT FUNCTIONS
+        // ============================================
+
+        async function exportSingleChart(fileNum) {
+            try {
+                const target = document.getElementById(`chartBox${fileNum}`);
+                if (!target) {
+                    throw new Error('Chart not found');
+                }
+                
+                const canvas = await html2canvas(target, { 
+                    backgroundColor: '#ffffff', 
+                    scale: 3, 
+                    useCORS: true,
+                    logging: false
+                });
+                
+                const link = document.createElement('a');
+                const timestamp = new Date().toISOString().slice(0, 10);
+                link.download = `EL_Chart_${fileNum === '1' ? 'NewUser' : 'PendingPhysical'}_${timestamp}.png`;
+                link.href = canvas.toDataURL('image/png', 1.0);
+                link.click();
+                
+                showToast('✓ Chart exported successfully', 'success');
+            } catch (error) {
+                console.error('Export error:', error);
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function exportChartAsImage() {
+            try {
+                const target = document.getElementById('chartExportArea');
+                if (!target) {
+                    throw new Error('Chart area not found');
+                }
+                
+                const canvas = await html2canvas(target, { 
+                    backgroundColor: '#ffffff', 
+                    scale: 3, 
+                    useCORS: true,
+                    logging: false,
+                    windowHeight: 1000
+                });
+                
+                const link = document.createElement('a');
+                const timestamp = new Date().toISOString().slice(0, 10);
+                link.download = `EL_Comparison_Report_${timestamp}.png`;
+                link.href = canvas.toDataURL('image/png', 1.0);
+                link.click();
+                
+                showToast('✓ Comparison exported successfully', 'success');
+            } catch (error) {
+                console.error('Export error:', error);
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        // ============================================
+        // RESPONSIVE & EVENT HANDLING
+        // ============================================
+
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (appState["1"].chart) applyFilter("1");
+                if (appState["2"].chart) applyFilter("2");
+                if (appState.comparisonChart) updateComparisonChart();
+            }, 250);
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === '1') switchTab('tab1');
+                else if (e.key === '2') switchTab('tab2');
+                else if (e.key === '3') switchTab('tab3');
+                else if (e.key === '4') switchTab('tab4');
+            }
+        });
     </script>
 </body>
 </html>
