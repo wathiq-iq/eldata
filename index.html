@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EL Data Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        /* Import Almarai for numbers and Plus Jakarta Sans for UI */
+        @import url('https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --secondary: #7c3aed;
+            --bg-slate: #f8fafc;
+            --font-main: 'Plus Jakarta Sans', sans-serif;
+            --font-chart: 'Almarai', sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+        
+        body { 
+            font-family: var(--font-main); 
+            -webkit-font-smoothing: antialiased;
+            background-color: var(--bg-slate);
+            color: #0f172a;
+        }
+
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+        }
+        
+        .tab-btn {
+            position: relative;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tab-active { 
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .tab-active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 30px;
+            height: 4px;
+            background: var(--primary);
+            border-radius: 10px 10px 0 0;
+        }
+        
+        .card-gradient-1 {
+            background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+            box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.3);
+        }
+        
+        .card-gradient-2 {
+            background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+            box-shadow: 0 10px 25px -5px rgba(124, 58, 237, 0.3);
+        }
+
+        .chart-wrapper {
+            position: relative;
+            width: 100%;
+            height: 520px; 
+            transition: all 0.3s ease;
+        }
+
+        .comparison-wrapper {
+            position: relative;
+            height: 750px;
+            width: 100%;
+        }
+
+        .btn-hover {
+            transition: all 0.2s ease;
+        }
+
+        .btn-hover:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 1.5em 1.5em;
+        }
+
+        /* Toast notifications */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            margin-left: -125px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 100;
+            left: 50%;
+            bottom: 30px;
+            font-size: 14px;
+        }
+
+        #toast.show {
+            visibility: visible;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        }
+
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+
+        @media (max-width: 640px) {
+            .chart-wrapper { height: 600px !important; }
+            .comparison-wrapper { height: 900px !important; }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <div id="toast">Message</div>
+
+    <!-- Navigation -->
+    <nav class="glass-nav sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex flex-col items-center py-4">
+                <div class="flex items-center gap-2 mb-4">
+                    <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">EL</div>
+                    <span class="text-xl font-extrabold tracking-tight text-slate-800">Analyzer</span>
+                </div>
+                <div class="flex justify-center w-full gap-2 sm:gap-8">
+                    <button onclick="switchTab('tab1')" id="btn-tab1" class="tab-btn px-4 py-2 text-sm sm:text-base text-slate-500 hover:text-blue-600 transition-colors tab-active">New User</button>
+                    <button onclick="switchTab('tab2')" id="btn-tab2" class="tab-btn px-4 py-2 text-sm sm:text-base text-slate-500 hover:text-blue-600 transition-colors">Pending Physical</button>
+                    <button onclick="switchTab('tab3')" id="btn-tab3" class="tab-btn px-4 py-2 text-sm sm:text-base text-slate-500 hover:text-blue-600 transition-colors">Comparison</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        <main>
+            <!-- Tab 1 -->
+            <div id="tab1" class="tab-content">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="space-y-6">
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <span class="w-2 h-6 bg-blue-600 rounded-full"></span>
+                                Data Inputs
+                            </h3>
+                            <label class="block mb-2 text-sm font-medium text-slate-600">Upload CSV File</label>
+                            <input type="file" id="fileInput1" onchange="handleFileUpload(event, '1')" accept=".csv" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer border border-slate-100 rounded-xl p-2 bg-slate-50" />
+                            
+                            <div id="filterArea1" class="hidden mt-6 space-y-6">
+                                <div>
+                                    <label class="block mb-2 text-sm font-medium text-slate-600">Filter by Province</label>
+                                    <select id="govFilter1" onchange="applyFilter('1')" class="w-full p-3 bg-white border border-slate-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"></select>
+                                </div>
+                                <div class="card-gradient-1 p-6 rounded-2xl text-white">
+                                    <p class="text-xs font-bold uppercase tracking-wider opacity-70">Total Records</p>
+                                    <p id="rowCount1" class="text-4xl font-black mt-1">0</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-2">
+                        <div id="chartBox1" class="hidden bg-white p-6 rounded-3xl border border-slate-200 shadow-sm chart-wrapper">
+                            <canvas id="canvas1"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2 -->
+            <div id="tab2" class="tab-content hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="space-y-6">
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <span class="w-2 h-6 bg-purple-600 rounded-full"></span>
+                                Pending Data
+                            </h3>
+                            <label class="block mb-2 text-sm font-medium text-slate-600">Upload CSV File</label>
+                            <input type="file" id="fileInput2" onchange="handleFileUpload(event, '2')" accept=".csv" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer border border-slate-100 rounded-xl p-2 bg-slate-50" />
+                            
+                            <div id="filterArea2" class="hidden mt-6 space-y-6">
+                                <div>
+                                    <label class="block mb-2 text-sm font-medium text-slate-600">Filter by Province</label>
+                                    <select id="govFilter2" onchange="applyFilter('2')" class="w-full p-3 bg-white border border-slate-200 rounded-xl shadow-sm focus:ring-2 focus:ring-purple-500 outline-none transition-all"></select>
+                                </div>
+                                
+                                <div class="card-gradient-2 p-6 rounded-2xl text-white">
+                                    <p class="text-xs font-bold uppercase tracking-wider opacity-70">Total Pending</p>
+                                    <p id="rowCount2" class="text-4xl font-black mt-1">0</p>
+                                </div>
+
+                                <button onclick="downloadFilteredData('2')" class="btn-hover w-full py-4 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center gap-3">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                    Download CSV
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-2">
+                        <div id="chartBox2" class="hidden bg-white p-6 rounded-3xl border border-slate-200 shadow-sm chart-wrapper">
+                            <canvas id="canvas2"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3 -->
+            <div id="tab3" class="tab-content hidden">
+                <div class="bg-white p-4 sm:p-8 rounded-3xl border border-slate-200 shadow-sm">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-6">
+                        <div>
+                            <h3 class="text-2xl font-extrabold text-slate-900">Market Comparison</h3>
+                            <p class="text-slate-500 text-sm mt-1">Side-by-side analysis of New Users vs. Pending Installations</p>
+                        </div>
+                        <div class="flex flex-wrap gap-3">
+                            <button onclick="updateComparisonChart()" class="btn-hover px-5 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                Refresh
+                            </button>
+                            <button onclick="exportChartAsImage()" class="btn-hover px-6 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                Export HD PNG
+                            </button>
+                        </div>
+                    </div>
+                    <div id="chartExportArea" class="bg-white p-4 rounded-2xl comparison-wrapper">
+                        <canvas id="canvasComparison"></canvas>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <div id="welcomeState" class="mt-20 flex flex-col items-center">
+            <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                <svg class="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+            </div>
+            <p class="text-slate-500 font-medium text-lg">Waiting for data upload...</p>
+        </div>
+    </div>
+
+    <script>
+        Chart.register(ChartDataLabels);
+
+        // Chart Global Settings
+        Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
+
+        const govMapping = {
+            "FDW": "Qadisiya", "FBG": "Baghdad", "FKU": "Wasit", "FNJ": "Najaf",
+            "FRM": "Anbar", "FBB": "Babil", "FBS": "Basrah", "FKR": "Karballa",
+            "FTK": "Salah aldin", "FKK": "Kirkuk", "FAM": "Misan", "FMU": "Muthanna",
+            "FNS": "Thy Qar", "FDY": "Diala", "FMS": "Naynawa"
+        };
+
+        const appState = {
+            "1": { headers: [], rows: [], filteredRows: [], zoneIdx: -1, govIdx: -1, chart: null },
+            "2": { headers: [], rows: [], filteredRows: [], zoneIdx: -1, govIdx: -1, chart: null },
+            comparisonChart: null
+        };
+
+        function showToast(msg) {
+            const t = document.getElementById("toast");
+            t.textContent = msg;
+            t.className = "show";
+            setTimeout(() => { t.className = t.className.replace("show", ""); }, 3000);
+        }
+
+        const commonChartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 800, easing: 'easeOutQuart' },
+            plugins: {
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    titleColor: '#fff',
+                    bodyColor: '#cbd5e1',
+                    padding: 14,
+                    cornerRadius: 12,
+                    titleFont: { size: 15, weight: 'bold' },
+                    bodyFont: { size: 14 },
+                    usePointStyle: true,
+                    boxPadding: 8
+                }
+            }
+        };
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+            document.getElementById(tabId).classList.remove('hidden');
+            ['tab1', 'tab2', 'tab3'].forEach(id => {
+                const btn = document.getElementById(`btn-${id}`);
+                if(btn) btn.className = tabId === id ? 'tab-btn px-4 py-2 text-slate-800 transition-all tab-active' : 'tab-btn px-4 py-2 transition-all text-slate-400';
+            });
+            if(tabId === 'tab3') setTimeout(updateComparisonChart, 50);
+        }
+
+        function parseCSV(text) {
+            const rows = [];
+            let row = [], cell = "", inQuotes = false;
+            for (let i = 0; i < text.length; i++) {
+                const c = text[i];
+                if (inQuotes) {
+                    if (c === '"' && text[i+1] === '"') { cell += '"'; i++; }
+                    else if (c === '"') inQuotes = false;
+                    else cell += c;
+                } else {
+                    if (c === '"') inQuotes = true;
+                    else if (c === ',') { row.push(cell.trim()); cell = ""; }
+                    else if (c === '\n' || c === '\r') {
+                        row.push(cell.trim());
+                        if (row.length > 0) rows.push(row);
+                        row = []; cell = "";
+                        if (c === '\r' && text[i+1] === '\n') i++;
+                    } else cell += c;
+                }
+            }
+            if (cell || row.length) { row.push(cell.trim()); rows.push(row); }
+            return rows;
+        }
+
+        function handleFileUpload(event, fileNum) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = parseCSV(e.target.result);
+                if (data.length < 1) return;
+                const headers = data[0];
+                const rows = data.slice(1);
+                const state = appState[fileNum];
+                
+                state.headers = headers;
+                state.zoneIdx = headers.findIndex(h => h.toLowerCase().includes("zone"));
+                state.statusIdx = headers.findIndex(h => h.toLowerCase().includes("status"));
+                state.govIdx = headers.length; 
+
+                let processed = rows.map(r => {
+                    const zone = (r[state.zoneIdx] || "").toUpperCase();
+                    let mapped = "Unknown";
+                    for (const [k, v] of Object.entries(govMapping)) {
+                        if (zone.startsWith(k)) { mapped = v; break; }
+                    }
+                    return [...r, mapped];
+                });
+
+                if (fileNum === "2" && state.statusIdx !== -1) {
+                    processed = processed.filter(r => (r[state.statusIdx] || "").trim() === "Pending Physical Installation");
+                }
+
+                state.rows = processed;
+                document.getElementById('welcomeState').classList.add('hidden');
+                document.getElementById(`filterArea${fileNum}`).classList.remove('hidden');
+                document.getElementById(`chartBox${fileNum}`).classList.remove('hidden');
+
+                const sel = document.getElementById(`govFilter${fileNum}`);
+                sel.innerHTML = '<option value="all">All Provinces</option>';
+                Object.entries(govMapping).forEach(([k, v]) => sel.innerHTML += `<option value="${k}">${v}</option>`);
+                
+                applyFilter(fileNum);
+                showToast(`File ${fileNum} loaded successfully`);
+            };
+            reader.readAsText(file, "UTF-8");
+        }
+
+        function applyFilter(fileNum) {
+            const state = appState[fileNum];
+            const val = document.getElementById(`govFilter${fileNum}`).value;
+            state.filteredRows = val === "all" ? state.rows : state.rows.filter(r => (r[state.zoneIdx] || "").toUpperCase().startsWith(val));
+            renderSingleChart(fileNum, state.filteredRows);
+        }
+
+        function downloadFilteredData(fileNum) {
+            const state = appState[fileNum];
+            if (!state.filteredRows.length) return;
+            const csvContent = [state.headers.join(","), ...state.filteredRows.map(row => row.slice(0, state.headers.length).map(cell => `"${cell}"`).join(","))].join("\n");
+            const BOM = "\uFEFF";
+            const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `Export_${new Date().getTime()}.csv`;
+            link.click();
+        }
+
+        function renderSingleChart(fileNum, data) {
+            document.getElementById(`rowCount${fileNum}`).textContent = data.length.toLocaleString();
+            const counts = {};
+            data.forEach(r => { const g = r[appState[fileNum].govIdx]; counts[g] = (counts[g] || 0) + 1; });
+            const labels = Object.values(govMapping).filter(v => counts[v]);
+            const values = labels.map(l => counts[l] || 0);
+
+            if (appState[fileNum].chart) appState[fileNum].chart.destroy();
+            appState[fileNum].chart = new Chart(document.getElementById(`canvas${fileNum}`), {
+                type: 'bar',
+                data: { 
+                    labels, 
+                    datasets: [{ 
+                        data: values, 
+                        backgroundColor: fileNum === '1' ? 'rgba(37, 99, 235, 0.85)' : 'rgba(124, 58, 237, 0.85)', 
+                        hoverBackgroundColor: fileNum === '1' ? '#2563eb' : '#7c3aed',
+                        borderRadius: 10
+                    }] 
+                },
+                options: { 
+                    ...commonChartOptions,
+                    indexAxis: 'y', 
+                    layout: { padding: { right: 90, left: 10, top: 20, bottom: 20 } },
+                    plugins: { 
+                        ...commonChartOptions.plugins,
+                        legend: { display: false }, 
+                        datalabels: { 
+                            anchor: 'end', align: 'right', offset: 12, 
+                            font: { weight: '800', size: 14, family: "'Almarai', sans-serif" },
+                            color: '#0f172a',
+                            formatter: (v) => v.toLocaleString()
+                        } 
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { weight: '600' } } },
+                        y: { 
+                            ticks: { font: { weight: '700', size: 14 }, color: '#475569' }, 
+                            grid: { display: false } 
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateComparisonChart() {
+            const labels = Object.values(govMapping).sort();
+            const d1 = {}, d2 = {};
+            appState["1"].rows.forEach(r => { const g = r[appState["1"].govIdx]; d1[g] = (d1[g] || 0) + 1; });
+            appState["2"].rows.forEach(r => { const g = r[appState["2"].govIdx]; d2[g] = (d2[g] || 0) + 1; });
+
+            const maxVal = Math.max(...labels.map(l => (d1[l] || 0)), ...labels.map(l => (d2[l] || 0)), 10);
+
+            if (appState.comparisonChart) appState.comparisonChart.destroy();
+            const ctx = document.getElementById('canvasComparison').getContext('2d');
+            
+            appState.comparisonChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'New User', data: labels.map(l => d1[l] || 0), backgroundColor: 'rgba(37, 99, 235, 0.85)', borderRadius: 8 },
+                        { label: 'Pending Installation', data: labels.map(l => d2[l] || 0), backgroundColor: 'rgba(124, 58, 237, 0.85)', borderRadius: 8 }
+                    ]
+                },
+                options: {
+                    ...commonChartOptions,
+                    indexAxis: 'y',
+                    layout: { padding: { right: 110, left: 10, top: 10, bottom: 10 } },
+                    plugins: {
+                        ...commonChartOptions.plugins,
+                        legend: {
+                            position: 'top', 
+                            labels: { font: { size: 14, weight: '700' } } 
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)', padding: 12, titleFont: { size: 14, weight: 'bold' }, bodyFont: { size: 13 }, cornerRadius: 8 
+                        },
+                        datalabels: {
+                            anchor: 'end', align: 'right', offset: 10,
+                            font: { size: 12, weight: '800', family: "'Almarai', sans-serif" },
+                            formatter: (v) => v > 0 ? v.toLocaleString() : ''
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            grid: { color: '#f1f5f9' }, 
+                            ticks: { font: { weight: '600' } },
+                            suggestedMax: maxVal * 1.2
+                        },
+                        y: { grid: { display: false }, ticks: { font: { weight: '700' } } }
+                    }
+                }
+            });
+        }
+
+        /**
+         * Enhanced Export Function
+         * Optimized for Full HD Output
+         */
+        async function exportChartAsImage() {
+            try {
+                showToast("Generating High-Res Image...");
+                const target = document.getElementById('chartExportArea');
+                
+                // Optimized html2canvas settings for HD
+                const options = {
+                    backgroundColor: '#ffffff',
+                    scale: 5, // Increased scale for ultra-sharp resolution
+                    useCORS: true,
+                    logging: false,
+                    allowTaint: true,
+                    onclone: (clonedDoc) => {
+                        // Ensure cloned elements look perfect
+                        const clonedTarget = clonedDoc.getElementById('chartExportArea');
+                        clonedTarget.style.padding = "40px";
+                    }
+                };
+
+                const canvas = await html2canvas(target, options);
+                
+                // Create high-quality data URL
+                const dataUrl = canvas.toDataURL('image/png', 1.0);
+                
+                const link = document.createElement('a');
+                link.download = `EL_Data_Report_${new Date().toISOString().split('T')[0]}.png`;
+                link.href = dataUrl;
+                link.click();
+                
+                showToast("HD Image exported successfully!");
+            } catch (e) {
+                console.error("Export Error:", e);
+                showToast("Export failed. Please try again.");
+            }
+        }
+    </script>
+</body>
+</html>
