@@ -1,1 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Access Denied - Account Blocked</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #f8fafc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            max-width: 450px;
+            width: 90%;
+            text-align: center;
+        }
+        .icon-container {
+            background-color: #fee2e2;
+            color: #dc2626;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem auto;
+        }
+    </style>
+</head>
+<body>
 
+    <div class="card">
+        <div class="icon-container">
+            <!-- Alert Icon SVG -->
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+        </div>
+        
+        <h1 class="text-2xl font-bold text-gray-800 mb-4">Maximum Limit Reached</h1>
+        
+        <p class="text-gray-600 mb-6 leading-relaxed">
+            Your account has been temporarily blocked because you have reached the maximum usage limit allowed.
+        </p>
+
+        <div class="bg-gray-50 p-4 rounded-lg mb-8 border border-gray-100">
+            <p class="text-sm text-gray-500">
+                To restore access or upgrade your plan, please contact our support team.
+            </p>
+        </div>
+
+        <button onclick="window.location.reload()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition duration-200">
+            Contact Support
+        </button>
+        
+        <p class="mt-4 text-xs text-gray-400">Error Code: ERR_LIMIT_EXCEEDED</p>
+    </div>
+
+</body>
+</html>
